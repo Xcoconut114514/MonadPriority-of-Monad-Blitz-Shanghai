@@ -3,6 +3,7 @@ import { createThirdwebClient } from "thirdweb";
 
 const MONAD_CHAIN_ID = 10143;
 
+// 创建服务端 Client
 const client = createThirdwebClient({
   secretKey: process.env.THIRDWEB_SECRET_KEY as string,
 });
@@ -47,13 +48,13 @@ export default async function handler(req, res) {
     const resourceUrl = `${protocol}://${host}/api/send-dm`;
     const paymentData = req.headers['x-payment'];
 
-    // 3. 调用 settlePayment (🔴 修复 TS2353: client 参数不应在此处)
+    // 3. 🔴 修复 TS2353 错误：移除了错误的 client 参数
     const paymentResult = await settlePayment({
       paymentData: paymentData,
       resourceUrl: resourceUrl,
       method: "POST",
       price: amount || "0.1", 
-      chainId: MONAD_CHAIN_ID,
+      chainId: MONAD_CHAIN_ID, // 保持 chainId 兼容性，如果 Facilitator 模式有冲突，编译会忽略
       payTo: recipientAddress,
       facilitator: twFacilitator,
     });
@@ -62,11 +63,11 @@ export default async function handler(req, res) {
       return res.status(paymentResult.status).json(paymentResult.responseBody);
     }
 
-    // --- 支付成功，发 Telegram ---
+    // --- 4. 支付成功，发 Telegram ---
     const transactionHash = paymentResult.paymentReceipt.transaction;
 
     const botToken = process.env.TG_BOT_TOKEN;
-    const chatId = process.env.TG_CHAT_ID;
+    const chatId = process.env.TG_CHAT_ID; // 确保是 process.env
 
     if (botToken && chatId) {
       const text = `
