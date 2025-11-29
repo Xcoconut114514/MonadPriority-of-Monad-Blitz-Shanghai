@@ -1,8 +1,8 @@
-import { NextResponse } from 'next/server';
 import { settlePayment, facilitator } from "thirdweb/x402";
 import { createThirdwebClient } from "thirdweb";
 
-const MONAD_CHAIN_ID = 10143;
+// 修正：使用正确的 chain ID 常量
+const MONAD_CHAIN_ID = 10143; 
 
 // 创建服务端 Client
 const client = createThirdwebClient({
@@ -10,7 +10,7 @@ const client = createThirdwebClient({
 });
 
 export default async function handler(req, res) {
-  // CORS 设置 (Vercel 部署标准)
+  // CORS 设置
   res.setHeader('Access-Control-Allow-Credentials', true);
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
@@ -29,47 +29,44 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { platform, username, message, amount } = req.body;
+    const body = req.body;
+    const { platform, username, message, amount } = body;
 
     const recipientAddress = process.env.HOST_WALLET_ADDRESS;
     if (!recipientAddress) {
       return res.status(500).json({ error: "Server Misconfiguration: HOST_WALLET_ADDRESS missing" });
     }
 
-    // 1. 初始化 Facilitator
+    // --- 核心验证逻辑 ---
     const twFacilitator = facilitator({
       client,
       serverWalletAddress: recipientAddress, 
     });
 
-    // 2. 构建资源 URL 和提取 Payment Data
     const protocol = req.headers['x-forwarded-proto'] || 'https';
     const host = req.headers['host'];
     const resourceUrl = `${protocol}://${host}/api/send-dm`;
     const paymentData = req.headers['x-payment'];
 
-    // 3. 调用 settlePayment (修复了 TS2353 错误: 移除了错误的 client 参数)
+    // 修复 TS(2353) 错误：price 参数已正确设置，不再需要额外的 'currency' 属性。
     const paymentResult = await settlePayment({
+      client, // 这里的 client 是必要的
       paymentData: paymentData,
       resourceUrl: resourceUrl,
       method: "POST",
-      price: amount || "0.1",
-      currency: "MON",
-      chainId: MONAD_CHAINID,
+      price: amount || "0.1", 
+      chainId: MONAD_CHAIN_ID,
       payTo: recipientAddress,
       facilitator: twFacilitator,
     });
 
-    // 4. 处理验证结果
     if (paymentResult.status !== 200) {
-      // 没付钱，返回 402
       return res.status(paymentResult.status).json(paymentResult.responseBody);
     }
 
-    // 🌟 5. 支付成功，提取交易哈希 (修复了 TS2339 错误)
+    // --- 支付成功，发 Telegram ---
     const transactionHash = paymentResult.paymentReceipt.transaction;
-
-    // --- 6. 发送 Telegram ---
+    
     const botToken = process.env.TG_BOT_TOKEN;
     const chatId = process.env.TG_CHAT_ID;
 
@@ -83,7 +80,7 @@ export default async function handler(req, res) {
 <b>Message:</b>
 <i>${message}</i>
 --------------------------------
-<b>Status:</b> ✅ Verified via Thirdweb Facilitator
+<b>Status:</b> ✅ Verified (Tx: ${transactionHash.slice(0, 8)}...)
       `.trim();
 
       await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
@@ -98,11 +95,7 @@ export default async function handler(req, res) {
       });
     }
 
-    return res.status(200).json({ 
-      success: true, 
-      message: "Priority Mail Delivered!", 
-      tx: transactionHash // 返回正确的交易哈希
-    });
+    return res.status(200).json({ success: true, message: "Priority Mail Delivered!", tx: transactionHash });
 
   } catch (error) {
     console.error("API Error:", error);

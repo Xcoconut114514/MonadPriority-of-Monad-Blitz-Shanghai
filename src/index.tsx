@@ -2,16 +2,25 @@ import React, { useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { createThirdwebClient } from "thirdweb";
 import { ThirdwebProvider, ConnectButton, useActiveWallet } from "thirdweb/react";
-// 引入封装工具
 import { wrapFetchWithPayment } from "thirdweb/x402";
 import { HOST_CONFIG, monadTestnet } from "./config"; 
 
-// 初始化 Client
+// 🌟 修复 TS(2305) 错误：从正确路径导入钱包连接器
+import { metamaskWallet, coinbaseWallet, rainbowWallet } from "@thirdweb-dev/wallets";
+
+// 初始化客户端
 const client = createThirdwebClient({ 
+  // 修复：使用正确的 Vite 环境变量读取方式
   clientId: import.meta.env.VITE_THIRDWEB_CLIENT_ID || "YOUR_CLIENT_ID" 
 });
 
-// --- Icons & Components (保持样式不变) ---
+const wallets = [
+    metamaskWallet(),
+    coinbaseWallet(),
+    rainbowWallet(),
+];
+
+// --- 保持你的所有 UI 组件不变 ---
 const IconCheck = () => (
   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="square" strokeLinejoin="miter" className="text-green-400"><path d="M20 6 9 17l-5-5"/></svg>
 );
@@ -78,7 +87,7 @@ const PixelCounter = ({ label, value, onChange }: any) => {
   );
 };
 
-// --- 主组件 ---
+// --- 核心业务组件 ---
 const MonadPriorityMail = () => {
   const wallet = useActiveWallet();
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
@@ -98,8 +107,6 @@ const MonadPriorityMail = () => {
     setStatus("loading");
     
     try {
-      // 🌟 核心：使用 Thirdweb 的 x402 封装 Fetch
-      // 这会自动处理 Facilitator 返回的 402 响应，唤起钱包，签名/支付，然后重试请求
       const fetchWithPay = wrapFetchWithPayment(fetch, client, wallet);
 
       const res = await fetchWithPay("/api/send-dm", {
@@ -117,7 +124,7 @@ const MonadPriorityMail = () => {
         setStatus("success");
       } else {
         const errorData = await res.json().catch(() => ({}));
-        console.error("Server Error:", errorData);
+        console.error("Payment failed:", errorData);
         alert("Transaction failed or cancelled.");
         setStatus("error");
       }
@@ -181,6 +188,7 @@ const MonadPriorityMail = () => {
                <ConnectButton 
                  client={client} 
                  chain={monadTestnet}
+                 wallets={wallets}
                  theme={"dark"}
                  connectButton={{ 
                    label: "CONNECT WALLET", 
