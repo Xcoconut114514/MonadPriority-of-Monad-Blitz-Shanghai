@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Monad Priority Gateway</title>
+    <!-- Google Fonts: Press Start 2P for the pixel art style -->
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: {
+              'pixel': ['"Press Start 2P"', 'cursive'],
+            },
+            colors: {
+              'monad': {
+                'dark': '#200052',
+                'purple': '#836EF9',
+                'ice': '#A0C2F9',
+                'bg': '#0f0e17',
+              },
+              'cyber': {
+                'pink': '#f72585',
+                'blue': '#4361ee',
+                'dark': '#1a1a2e',
+              },
+              'arcade': {
+                'red': '#FF0000', 
+              }
+            },
+            boxShadow: {
+              'pixel': '6px 6px 0px 0px rgba(0,0,0,1)',
+              'pixel-active': '2px 2px 0px 0px rgba(0,0,0,1)',
+              'neon': '0 0 10px rgba(131, 110, 249, 0.5), 0 0 20px rgba(67, 97, 238, 0.5)',
+            },
+            backgroundImage: {
+              'grid-pattern': "linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px)",
+            }
+          }
+        }
+      }
+    </script>
+    <style>
+      body {
+        background-color: #0f0e17;
+        /* Smooth scanline effect */
+        background-image: repeating-linear-gradient(
+          0deg,
+          transparent,
+          transparent 2px,
+          rgba(0, 0, 0, 0.1) 2px,
+          rgba(0, 0, 0, 0.1) 4px
+        );
+      }
+      .scrollbar-hide::-webkit-scrollbar {
+          display: none;
+      }
+      .animate-blink {
+        animation: blink 1s step-end infinite;
+      }
+      @keyframes blink {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0; }
+      }
+      
+      /* Hide number input spinners */
+      input[type=number]::-webkit-inner-spin-button, 
+      input[type=number]::-webkit-outer-spin-button { 
+        -webkit-appearance: none; 
+        margin: 0; 
+      }
+      input[type=number] {
+        -moz-appearance: textfield;
+      }
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+    "react/": "https://aistudiocdn.com/react@^19.2.0/",
+    "react": "https://aistudiocdn.com/react@^19.2.0",
+    "next/": "https://aistudiocdn.com/next@^16.0.5/"
+  }
+}
+</script>
+<link rel="stylesheet" href="/index.css">
+</head>
+  <body class="min-h-screen text-white font-pixel antialiased overflow-x-hidden selection:bg-monad-purple selection:text-white">
+    <div id="root"></div>
+    <script type="module" src="./index.tsx"></script>
+  <script type="module" src="/index.tsx"></script>
+</body>
+</html>
