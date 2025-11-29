@@ -1,25 +1,21 @@
 import React, { useState } from 'react';
 import { createRoot } from 'react-dom/client';
-// --- 新增：引入 Thirdweb SDK ---
 import { createThirdwebClient } from "thirdweb";
 import { ThirdwebProvider, ConnectButton, useActiveWallet } from "thirdweb/react";
-import { wrapFetchWithPayment } from "thirdweb/payment";
-import { HOST_CONFIG, monadTestnet } from "./config"; // 引入刚才建的配置
+// 引入封装工具
+import { wrapFetchWithPayment } from "thirdweb/x402";
+import { HOST_CONFIG, monadTestnet } from "./config"; 
 
-// 初始化客户端
+// 初始化 Client
 const client = createThirdwebClient({ 
-  clientId: import.meta.env.VITE_THIRDWEB_CLIENT_ID || "YOUR_CLIENT_ID" // 记得在 .env 里配
+  clientId: import.meta.env.VITE_THIRDWEB_CLIENT_ID || "YOUR_CLIENT_ID" 
 });
 
-// --- Icons (保留原样) ---
-const IconRocket = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="square" strokeLinejoin="miter"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/><path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/></svg>
-);
+// --- Icons & Components (保持样式不变) ---
 const IconCheck = () => (
   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="square" strokeLinejoin="miter" className="text-green-400"><path d="M20 6 9 17l-5-5"/></svg>
 );
 
-// --- Components (保留你的像素 UI 组件不动) ---
 const PixelCard = ({ children, className = "" }: { children?: React.ReactNode, className?: string }) => (
   <div className={`bg-gray-800 border-4 border-black shadow-pixel p-8 md:p-10 relative ${className}`}>
     <div className="absolute top-0 left-0 w-full h-1 bg-white opacity-10"></div>
@@ -33,7 +29,6 @@ const PixelButton = ({ children, onClick, disabled, variant = "primary", classNa
   const variants = {
     primary: "bg-monad-purple text-white shadow-pixel hover:bg-[#9481FA]",
     secondary: "bg-gray-200 text-black shadow-pixel hover:bg-white",
-    cyber: "bg-cyber-pink text-white shadow-pixel hover:bg-[#ff4d9e]"
   };
   return (
     <button onClick={onClick} disabled={disabled} className={`${baseStyle} ${variants[variant as keyof typeof variants]} ${className}`}>
@@ -83,12 +78,11 @@ const PixelCounter = ({ label, value, onChange }: any) => {
   );
 };
 
-// --- Main App Logic (逻辑修改部分) ---
-
+// --- 主组件 ---
 const MonadPriorityMail = () => {
-  // 1. 使用 Thirdweb Hook 获取钱包状态
   const wallet = useActiveWallet();
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
+  const [txHash, setTxHash] = useState("");
   const [coinAmount, setCoinAmount] = useState<string | number>(HOST_CONFIG.defaultPrice);
   
   const [formData, setFormData] = useState({
@@ -104,10 +98,10 @@ const MonadPriorityMail = () => {
     setStatus("loading");
     
     try {
-      // 2. 核心逻辑：封装 Fetch，启用 x402 自动支付
+      // 🌟 核心：使用 Thirdweb 的 x402 封装 Fetch
+      // 这会自动处理 Facilitator 返回的 402 响应，唤起钱包，签名/支付，然后重试请求
       const fetchWithPay = wrapFetchWithPayment(fetch, client, wallet);
 
-      // 发送请求到后端 API (注意：Vite 本地开发时可能需要配置代理，部署到 Vercel 后会自动生效)
       const res = await fetchWithPay("/api/send-dm", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -118,9 +112,13 @@ const MonadPriorityMail = () => {
       });
 
       if (res.ok) {
+        const data = await res.json();
+        setTxHash(data.tx || "");
         setStatus("success");
       } else {
-        console.error("Payment failed or server error");
+        const errorData = await res.json().catch(() => ({}));
+        console.error("Server Error:", errorData);
+        alert("Transaction failed or cancelled.");
         setStatus("error");
       }
     } catch (err) {
@@ -135,7 +133,15 @@ const MonadPriorityMail = () => {
         <PixelCard className="max-w-md w-full text-center py-12">
           <div className="flex justify-center mb-6"><IconCheck /></div>
           <h2 className="text-xl text-green-400 mb-4 leading-relaxed font-pixel">TRANSMISSION<br/>COMPLETE</h2>
-          <p className="text-xs text-gray-400 mb-8 leading-6 font-pixel">Your message has been encrypted and beamed directly to the recipient.</p>
+          <p className="text-xs text-gray-400 mb-4 leading-6 font-pixel">
+            Verified by Thirdweb Facilitator.<br/>
+            Sent via Monad Testnet.
+          </p>
+          {txHash && (
+             <a href={`https://testnet.monadexplorer.com/tx/${txHash}`} target="_blank" rel="noopener noreferrer" className="text-[10px] text-monad-ice underline block mb-8">
+               VIEW TRANSACTION
+             </a>
+          )}
           <PixelButton onClick={() => setStatus("idle")} variant="secondary">SEND ANOTHER</PixelButton>
         </PixelCard>
       </div>
@@ -144,15 +150,10 @@ const MonadPriorityMail = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-900 via-purple-900 to-slate-900 bg-grid-pattern flex flex-col items-center pt-32 pb-12 px-4 font-pixel">
-      
       <header className="mb-16 text-center space-y-8">
-        <h1 className="text-3xl md:text-6xl text-transparent bg-clip-text bg-gradient-to-r from-monad-ice to-monad-purple drop-shadow-[6px_6px_0_rgba(0,0,0,1)] tracking-tighter">
-          MONAD PRIORITY
-        </h1>
+        <h1 className="text-3xl md:text-6xl text-transparent bg-clip-text bg-gradient-to-r from-monad-ice to-monad-purple drop-shadow-[6px_6px_0_rgba(0,0,0,1)] tracking-tighter">MONAD PRIORITY</h1>
         <div className="inline-block bg-black px-6 py-3 border-4 border-gray-700 transform rotate-0 hover:-rotate-3 transition-transform duration-200">
-          <p className="text-[10px] md:text-sm text-arcade-red animate-blink tracking-widest font-bold">
-            Insert Coin to Chat // X402
-          </p>
+          <p className="text-[10px] md:text-sm text-arcade-red animate-blink tracking-widest font-bold">Insert Coin to Chat // X402</p>
         </div>
       </header>
 
@@ -161,7 +162,6 @@ const MonadPriorityMail = () => {
         <div className="absolute -bottom-6 -left-6 w-40 h-40 bg-cyber-blue opacity-20 blur-2xl"></div>
 
         <PixelCard>
-          {/* Recipient Card (Boss Info) - 使用 config 数据 */}
           <div className="flex justify-between items-center mb-6 border-b-4 border-gray-800 pb-4">
             <div className="flex items-center gap-4">
                <div className="w-12 h-12 border-2 border-white overflow-hidden bg-gray-700">
@@ -173,13 +173,10 @@ const MonadPriorityMail = () => {
                    <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
                  </div>
                  <span className="text-sm text-monad-purple font-bold tracking-wider">{HOST_CONFIG.username}</span>
-                 <span className="text-[10px] text-gray-600 font-mono">
-                   ID: {HOST_CONFIG.walletAddress.slice(0,6)}...{HOST_CONFIG.walletAddress.slice(-4)}
-                 </span>
+                 <span className="text-[10px] text-gray-600 font-mono">ID: {HOST_CONFIG.walletAddress.slice(0,6)}...{HOST_CONFIG.walletAddress.slice(-4)}</span>
                </div>
             </div>
             
-            {/* 3. 使用 Thirdweb 官方连接按钮 (自定义样式适配像素风) */}
             <div>
                <ConnectButton 
                  client={client} 
@@ -198,37 +195,16 @@ const MonadPriorityMail = () => {
               <PixelSelect label="Platform" options={["Twitter", "Telegram", "Discord"]} value={formData.platform} onChange={(e: any) => setFormData({...formData, platform: e.target.value})} />
               <PixelInput label="Username" placeholder="@username" value={formData.username} onChange={(e: any) => setFormData({...formData, username: e.target.value})} />
             </div>
-
             <PixelTextarea label="Message Payload" placeholder="Write your priority message here..." value={formData.message} onChange={(e: any) => setFormData({...formData, message: e.target.value})} />
-
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-end">
                <PixelCounter label="Insert Amount" value={coinAmount} onChange={setCoinAmount} />
-               
                <div>
-                  <PixelButton 
-                    className="w-full flex items-center justify-center gap-3 text-sm md:text-base py-5 h-[88px]" 
-                    disabled={!wallet || status === 'loading'}
-                    variant={wallet ? "primary" : "secondary"}
-                  >
-                    {status === 'loading' ? (
-                      <span className="animate-blink">PROCESSING...</span>
-                    ) : (
-                      <>
-                        <div className="flex flex-col items-start leading-tight">
-                          <span className="text-[10px] opacity-80">SEND MESSAGE</span>
-                          <span>INSERT {coinAmount || 0} MON 🚀</span>
-                        </div>
-                      </>
-                    )}
+                  <PixelButton className="w-full flex items-center justify-center gap-3 text-sm md:text-base py-5 h-[88px]" disabled={!wallet || status === 'loading'} variant={wallet ? "primary" : "secondary"}>
+                    {status === 'loading' ? <span className="animate-blink">PROCESSING...</span> : <span>INSERT {coinAmount || 0} MON 🚀</span>}
                   </PixelButton>
                </div>
             </div>
-              
-            {!wallet && (
-              <p className="text-[10px] text-red-400 text-center -mt-2">
-                * PLEASE CONNECT WALLET TO OPERATE
-              </p>
-            )}
+            {!wallet && <p className="text-[10px] text-red-400 text-center -mt-2">* PLEASE CONNECT WALLET TO OPERATE</p>}
           </form>
         </PixelCard>
       </div>
@@ -241,7 +217,6 @@ const MonadPriorityMail = () => {
   );
 };
 
-// 4. 包裹 Provider
 const container = document.getElementById('root');
 if (container) {
   const root = createRoot(container);
