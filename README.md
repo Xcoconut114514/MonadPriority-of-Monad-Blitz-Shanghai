@@ -1,8 +1,4 @@
-这是一个为你准备的完整中文项目文档，你可以直接复制用作 `README.md` 或者提交给黑客松评委的项目介绍。
 
-它涵盖了**项目愿景、技术架构、运行流程以及部署指南**，非常适合黑客松的提交标准。
-
------
 
 # 👾 Monad Priority Mail (MPM)
 
@@ -84,7 +80,8 @@ npm run dev
 
 ## 📸 演示截图 (Demo)
 
-*(此处你可以放一张你那个很酷的像素风界面的截图)*
+<img width="1920" height="1200" alt="c66420589aec3118c7e20e010093336f" src="https://github.com/user-attachments/assets/be88083b-32f3-4d7c-b393-ebd74d499e20" />
+
 
 -----
 
