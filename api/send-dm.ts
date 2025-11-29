@@ -1,16 +1,14 @@
 import { settlePayment, facilitator } from "thirdweb/x402";
 import { createThirdwebClient } from "thirdweb";
 
-// 修正：使用正确的 chain ID 常量
-const MONAD_CHAIN_ID = 10143; 
+const MONAD_CHAIN_ID = 10143;
 
-// 创建服务端 Client
 const client = createThirdwebClient({
   secretKey: process.env.THIRDWEB_SECRET_KEY as string,
 });
 
 export default async function handler(req, res) {
-  // CORS 设置
+  // CORS Setting
   res.setHeader('Access-Control-Allow-Credentials', true);
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
@@ -37,20 +35,20 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: "Server Misconfiguration: HOST_WALLET_ADDRESS missing" });
     }
 
-    // --- 核心验证逻辑 ---
+    // 1. 初始化 Facilitator
     const twFacilitator = facilitator({
       client,
       serverWalletAddress: recipientAddress, 
     });
 
+    // 2. 构建资源 URL 和提取 Payment Data
     const protocol = req.headers['x-forwarded-proto'] || 'https';
     const host = req.headers['host'];
     const resourceUrl = `${protocol}://${host}/api/send-dm`;
     const paymentData = req.headers['x-payment'];
 
-    // 修复 TS(2353) 错误：price 参数已正确设置，不再需要额外的 'currency' 属性。
+    // 3. 调用 settlePayment (🔴 修复 TS2353: client 参数不应在此处)
     const paymentResult = await settlePayment({
-      client, // 这里的 client 是必要的
       paymentData: paymentData,
       resourceUrl: resourceUrl,
       method: "POST",
@@ -66,7 +64,7 @@ export default async function handler(req, res) {
 
     // --- 支付成功，发 Telegram ---
     const transactionHash = paymentResult.paymentReceipt.transaction;
-    
+
     const botToken = process.env.TG_BOT_TOKEN;
     const chatId = process.env.TG_CHAT_ID;
 
